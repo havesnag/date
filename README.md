@@ -6,7 +6,6 @@ include three class Duration Date Time
 
 ##example
 
-int main(int argc, char *argv[])
 {
 	ec::Time now;
 
