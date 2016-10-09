@@ -119,8 +119,8 @@ private:
 class Date
 {
 public:
-	/** @brief 返回当前时区，以秒为单位，比如UTC+8的时区为-28800 */
-	static time_t getTimeZoneOffset();
+	/** @brief 返回当前系统时区，以秒为单位，比如UTC+8的时区为-28800 */
+	static time_t localTimeZoneOffset();
 	/** @brief 判断是否是闰年 */
 	static bool isLeapYear(int year);
 	/** @brief 某年某月一共有多少天 */
@@ -219,6 +219,9 @@ public:
 	{
 		return (_tm.tm_wday > 0) ? _tm.tm_wday : 7;
 	}
+
+	/** @brief 时区，以秒为单位，比如UTC+8的时区为-28800 */
+	time_t timeZoneOffset() const;
 
 	/** @brief 设置时间戳 */
 	Date & set(time_t stamp);

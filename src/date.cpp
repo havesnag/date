@@ -262,10 +262,10 @@ bool Duration::operator <= (const Duration & other)
 
 
 
-time_t Date::getTimeZoneOffset()
+time_t Date::localTimeZoneOffset()
 {
-	static time_t timeZoneOffset = (12 - Date(43200).hour()) * 3600;
-	return timeZoneOffset;
+	static time_t tz = Date().timeZoneOffset();
+	return tz;
 }
 
 bool Date::isLeapYear(int year)
@@ -378,15 +378,24 @@ time_t Date::stamp() const
 	{
 		return (0 != _tm.tm_mon) ?
 			mktime(const_cast<struct tm *>(&_tm)) :
-			(_tm.tm_mday - 1) * 86400 + _tm.tm_hour * 3600 + _tm.tm_min * 60 + _tm.tm_sec + Date::getTimeZoneOffset();
+			(_tm.tm_mday - 1) * 86400 + _tm.tm_hour * 3600 + _tm.tm_min * 60 + _tm.tm_sec + Date::localTimeZoneOffset();
 	}
 	else
 	{
-		return Date::getTimeZoneOffset();
+		return Date::localTimeZoneOffset();
 	}
 #else
 	return mktime(const_cast<struct tm *>(&_tm));
 #endif
+}
+
+time_t Date::timeZoneOffset() const
+{
+# ifdef __USE_BSD
+	return static_cast<time_t>(-_tm.tm_gmtoff);
+# else
+	return static_cast<time_t>(-_tm.__tm_gmtoff);
+# endif//__USE_BSD
 }
 
 Date & Date::set(time_t stamp)
@@ -398,7 +407,7 @@ Date & Date::set(time_t stamp)
 	}
 	else
 	{
-		time_t zoneOffset = Date::getTimeZoneOffset();
+		time_t zoneOffset = Date::timeZoneOffset();
 		if (zoneOffset >= 0)
 		{
 			stamp = 0;
@@ -747,17 +756,17 @@ Date Time::toDate() const
 
 time_t Time::getUTCStamp() const
 {
-	return seconds() - Date::getTimeZoneOffset();
+	return seconds() - Date::localTimeZoneOffset();
 }
 
 int64 Time::getUTCFullMicroSeconds() const
 {
-	return microStamp() + Date::getTimeZoneOffset() * 1000000;
+	return microStamp() + Date::localTimeZoneOffset() * 1000000;
 }
 
 int64 Time::getUTCFullMilliSeconds() const
 {
-	return milliStamp() + Date::getTimeZoneOffset() * 1000;
+	return milliStamp() + Date::localTimeZoneOffset() * 1000;
 }
 
 time_t Time::getUTCFullSeconds() const
