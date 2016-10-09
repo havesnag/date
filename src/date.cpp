@@ -270,7 +270,7 @@ time_t Date::getTimeZoneOffset()
 
 bool Date::isLeapYear(int year)
 {
-	return (year % 4 == 0 && year % 100 != 0);
+	return (year % 4 == 0 && ((year % 400 == 0) || (year % 100 != 0)));
 }
 
 int Date::yearMonthDays(int year, int month)
@@ -300,9 +300,7 @@ int Date::yearMonthDays(int year, int month)
 
 Date::Date()
 {
-	memset(&_tm, 0, sizeof(_tm));
-	time_t stamp = time(NULL);
-	localtime_r(&stamp, &_tm);
+	set(time(NULL));
 }
 
 Date::Date(time_t stamp)
@@ -322,12 +320,15 @@ Date::Date(const Date &date)
 
 Date::Date(int year, int month, int day, int hour, int minute, int second)
 {
+	set(time(NULL));
+
 	_tm.tm_year = year - 1900;
 	_tm.tm_mon = month - 1;
 	_tm.tm_mday = day;
 	_tm.tm_hour = hour;
 	_tm.tm_min = minute;
 	_tm.tm_sec = second;
+
 	_update();
 }
 
@@ -390,7 +391,6 @@ time_t Date::stamp() const
 
 Date & Date::set(time_t stamp)
 {
-	memset(&_tm, 0, sizeof(_tm));
 #if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
 	if (stamp >= 0)
 	{
