@@ -12,10 +12,14 @@
 #include <string>
 
 #if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
+#define PLATFORM_WINDOWS
+#endif
+
+#ifdef PLATFORM_WINDOWS
 #include <Windows.h>
 #else
 #include <sys/time.h>
-#endif//_WIN32
+#endif // PLATFORM_WINDOWS
 
 
 #ifndef int64
@@ -140,7 +144,7 @@ public:
 	/** @brief 以Time对象构造 */
 	Date(const Time &time);
 	/** @brief 以Date对象复制 */
-	Date(const Date &date);
+	Date(const Date &other);
 
 	/**
 	 * @brief 以指定时间构造
@@ -223,6 +227,12 @@ public:
 		return (_tm.tm_wday > 0) ? _tm.tm_wday : 7;
 	}
 
+	/** @brief 是否是UTC基准时间 */
+	inline bool isUTC() const
+	{
+		return _isUTC;
+	}
+
 	/** @brief 转换为时间戳 @note 按本地时间（时区）转换，比如在东8区(UTC+8)时1970-01-01 00:00:00为-28800 */
 	time_t stamp() const;
 	/** @brief 转换为UTC时间戳 @note 比如1970-01-01 00:00:00为0 */
@@ -297,8 +307,6 @@ public:
 	bool isLeapYear() const;
 	/** @brief 是否是一月的最后一天 */
 	bool isLastDayOfMonth() const;
-	/** @brief 是否是UTC基准时间 */
-	bool isUTC() const;
 
 	Date operator + (const Duration & duration);
 	Date operator - (const Duration & duration);
@@ -309,11 +317,12 @@ public:
 	bool operator = (const Date & other);
 
 protected:
-	void _set(time_t stamp, bool utc = false);
+	void _set(time_t stamp);
 	void _update();
 
 private:
 	struct tm _tm;
+	bool _isUTC;
 };
 
 /**

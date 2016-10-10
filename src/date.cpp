@@ -12,7 +12,7 @@
 #include <string.h>
 using namespace std;
 
-#if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
+#ifdef PLATFORM_WINDOWS
 
 #define localtime_r(t, tm) localtime_s(tm, t)
 #define gmtime_r(t, tm) gmtime_s(tm, t)
@@ -35,7 +35,7 @@ int gettimeofday(struct timeval *tp, void *tzp)
 	tp->tv_usec = wtm.wMilliseconds * 1000;
 	return (0);
 }
-#endif//_WIN32
+#endif // PLATFORM_WINDOWS
 
 namespace ec
 {
@@ -266,12 +266,12 @@ bool Duration::operator <= (const Duration & other)
 
 time_t Date::localTimeZoneOffset()
 {
-	return static_cast<time_t>(-3600 * localTimeZone());
+	return localTimeZone() * -3600;
 }
 
 int Date::localTimeZone()
 {
-	static int tz = Date().timeZone();
+	static int tz = Date(0).hour();
 	return tz;
 }
 
@@ -307,26 +307,31 @@ int Date::yearMonthDays(int year, int month)
 
 Date::Date()
 {
+	_isUTC = false;
 	_set(time(NULL));
 }
 
 Date::Date(time_t stamp, bool utc)
 {
-	_set(stamp, utc);
+	_isUTC = utc;
+	_set(stamp);
 }
 
 Date::Date(const Time &time)
 {
+	_isUTC = false;
 	_set(time.stamp());
 }
 
-Date::Date(const Date &date)
+Date::Date(const Date &other)
 {
-	_tm = date._tm;
+	_tm = other._tm;
+	_isUTC = other._isUTC;
 }
 
 Date::Date(int year, int month, int day, int hour, int minute, int second)
 {
+	_isUTC = false;
 	_set(time(NULL));
 
 	_tm.tm_year = year - 1900;
@@ -376,7 +381,7 @@ std::string Date::format(const char * fmt) const
 
 time_t Date::stamp() const
 {
-#if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
+#ifdef PLATFORM_WINDOWS
 	if (_tm.tm_year > 70) // > 1970
 	{
 		return mktime(const_cast<struct tm *>(&_tm));
@@ -393,7 +398,7 @@ time_t Date::stamp() const
 	}
 #else
 	return mktime(const_cast<struct tm *>(&_tm));
-#endif
+#endif // PLATFORM_WINDOWS
 }
 
 time_t Date::utcStamp() const
@@ -403,11 +408,15 @@ time_t Date::utcStamp() const
 
 int Date::timeZone() const
 {
+#ifdef PLATFORM_WINDOWS
+	return _isUTC ? 0 : Date::localTimeZone();
+#else
 # ifdef __USE_BSD
 	return static_cast<int>(_tm.tm_gmtoff / 3600);
 # else
 	return static_cast<int>(_tm.__tm_gmtoff / 3600);
 # endif//__USE_BSD
+#endif // PLATFORM_WINDOWS
 }
 
 time_t Date::timeZoneOffset() const
@@ -490,7 +499,7 @@ Date & Date::zeroSet(Duration::Period period)
 		_tm.tm_sec = 0;
 		break;
 	case Duration::Week:
-		_set(toTime().zeroSet(period).stamp(), isUTC());
+		_set(toTime().zeroSet(period).stamp());
 		break;	
 	case Duration::Month:
 		_tm.tm_mday = 1;
@@ -521,7 +530,7 @@ Date & Date::add(int64 value, Duration::Period period)
 	case Duration::Hour:
 	case Duration::Day:
 	case Duration::Week:
-		_set(toTime().add(value, period).stamp(), isUTC());
+		_set(toTime().add(value, period).stamp());
 		break;
 	case Duration::Month:
 		addMonth(value);
@@ -629,11 +638,6 @@ bool Date::isLastDayOfMonth() const
 	return day() >= Date::yearMonthDays(year(), month());
 }
 
-bool Date::isUTC() const
-{
-	return timeZone() == 0;
-}
-
 Date Date::operator + (const Duration & duration)
 {
 	return clone().add(duration.value(), duration.period());
@@ -699,19 +703,19 @@ bool Date::operator = (const Date & other)
 			(_tm.tm_sec == other._tm.tm_sec);
 }
 
-void Date::_set(time_t stamp, bool utc)
+void Date::_set(time_t stamp)
 {
-#if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
+#ifdef PLATFORM_WINDOWS
 	if (stamp >= 0)
 	{
-		utc ? gmtime_r(&stamp, &_tm) : localtime_r(&stamp, &_tm);
+		_isUTC ? gmtime_r(&stamp, &_tm) : localtime_r(&stamp, &_tm);
 	}
 	else
 	{
-		if (utc)
+		if (_isUTC)
 		{
 			stamp = 0;
-			gmtime_r(&stamp, &_tm)
+			gmtime_r(&stamp, &_tm);
 		}
 		else
 		{
@@ -731,8 +735,8 @@ void Date::_set(time_t stamp, bool utc)
 		}
 	}
 #else
-	utc ? gmtime_r(&stamp, &_tm) : localtime_r(&stamp, &_tm);
-#endif
+	_isUTC ? gmtime_r(&stamp, &_tm) : localtime_r(&stamp, &_tm);
+#endif // PLATFORM_WINDOWS
 }
 
 void Date::_update()
@@ -743,7 +747,7 @@ void Date::_update()
 		_tm.tm_mday = monthDays;
 	}
 
-	_set(stamp(), isUTC());
+	_set(stamp());
 }
 
 
