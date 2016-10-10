@@ -16,6 +16,8 @@ include three class
 
 [The API Documentation](http://www.baiyy.com/public/project/ecdate/index.html)
 
+[The Porject Home Page](http://www.baiyy.com/portal/page/index/id/23)
+
 # detail
 Please directly add the source code to your project
  
@@ -97,3 +99,5 @@ Time: 时间类
 
 
 [完整API参考文档](http://www.baiyy.com/public/project/ecdate/index.html)
+
+[项目主页地址](http://www.baiyy.com/portal/page/index/id/23)
