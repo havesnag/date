@@ -13,7 +13,9 @@
 using namespace std;
 
 #if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
+
 #define localtime_r(t, tm) localtime_s(tm, t)
+#define gmtime_r(t, tm) gmtime_s(tm, t)
 
 int gettimeofday(struct timeval *tp, void *tzp) 
 {
@@ -264,7 +266,12 @@ bool Duration::operator <= (const Duration & other)
 
 time_t Date::localTimeZoneOffset()
 {
-	static time_t tz = Date().timeZoneOffset();
+	return static_cast<time_t>(-3600 * localTimeZone());
+}
+
+int Date::localTimeZone()
+{
+	static int tz = Date().timeZone();
 	return tz;
 }
 
@@ -300,17 +307,17 @@ int Date::yearMonthDays(int year, int month)
 
 Date::Date()
 {
-	set(time(NULL));
+	_set(time(NULL));
 }
 
-Date::Date(time_t stamp)
+Date::Date(time_t stamp, bool utc)
 {
-	set(stamp);
+	_set(stamp, utc);
 }
 
 Date::Date(const Time &time)
 {
-	set(time.stamp());
+	_set(time.stamp());
 }
 
 Date::Date(const Date &date)
@@ -320,7 +327,7 @@ Date::Date(const Date &date)
 
 Date::Date(int year, int month, int day, int hour, int minute, int second)
 {
-	set(time(NULL));
+	_set(time(NULL));
 
 	_tm.tm_year = year - 1900;
 	_tm.tm_mon = month - 1;
@@ -389,43 +396,23 @@ time_t Date::stamp() const
 #endif
 }
 
-time_t Date::timeZoneOffset() const
+time_t Date::utcStamp() const
+{
+	return stamp() - Date::localTimeZoneOffset();
+}
+
+int Date::timeZone() const
 {
 # ifdef __USE_BSD
-	return static_cast<time_t>(-_tm.tm_gmtoff);
+	return static_cast<int>(_tm.tm_gmtoff / 3600);
 # else
-	return static_cast<time_t>(-_tm.__tm_gmtoff);
+	return static_cast<int>(_tm.__tm_gmtoff / 3600);
 # endif//__USE_BSD
 }
 
-Date & Date::set(time_t stamp)
+time_t Date::timeZoneOffset() const
 {
-#if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
-	if (stamp >= 0)
-	{
-		localtime_r(&stamp, &_tm);
-	}
-	else
-	{
-		time_t zoneOffset = Date::timeZoneOffset();
-		if (zoneOffset >= 0)
-		{
-			stamp = 0;
-			localtime_r(&stamp, &_tm);
-		}
-		else
-		{
-			stamp = (stamp < zoneOffset) ? 0 : stamp - zoneOffset;
-			localtime_r(&stamp, &_tm);
-			int hour = static_cast<int>(zoneOffset / 3600);
-			_tm.tm_hour += hour;
-		}
-	}
-#else
-	localtime_r(&stamp, &_tm);
-#endif
-
-	return *this;
+	return static_cast<time_t>(-3600 * timeZone());
 }
 
 Date & Date::setDate(int year, int month, int day)
@@ -503,7 +490,7 @@ Date & Date::zeroSet(Duration::Period period)
 		_tm.tm_sec = 0;
 		break;
 	case Duration::Week:
-		set(toTime().zeroSet(period).stamp());
+		_set(toTime().zeroSet(period).stamp(), isUTC());
 		break;	
 	case Duration::Month:
 		_tm.tm_mday = 1;
@@ -534,8 +521,8 @@ Date & Date::add(int64 value, Duration::Period period)
 	case Duration::Hour:
 	case Duration::Day:
 	case Duration::Week:
-		set(toTime().add(value, period).stamp());
-		break;	
+		_set(toTime().add(value, period).stamp(), isUTC());
+		break;
 	case Duration::Month:
 		addMonth(value);
 		break;
@@ -642,6 +629,11 @@ bool Date::isLastDayOfMonth() const
 	return day() >= Date::yearMonthDays(year(), month());
 }
 
+bool Date::isUTC() const
+{
+	return timeZone() == 0;
+}
+
 Date Date::operator + (const Duration & duration)
 {
 	return clone().add(duration.value(), duration.period());
@@ -707,6 +699,42 @@ bool Date::operator = (const Date & other)
 			(_tm.tm_sec == other._tm.tm_sec);
 }
 
+void Date::_set(time_t stamp, bool utc)
+{
+#if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
+	if (stamp >= 0)
+	{
+		utc ? gmtime_r(&stamp, &_tm) : localtime_r(&stamp, &_tm);
+	}
+	else
+	{
+		if (utc)
+		{
+			stamp = 0;
+			gmtime_r(&stamp, &_tm)
+		}
+		else
+		{
+			time_t zoneOffset = Date::timeZoneOffset();
+			if (zoneOffset >= 0)
+			{
+				stamp = 0;
+				localtime_r(&stamp, &_tm);
+			}
+			else
+			{
+				stamp = (stamp < zoneOffset) ? 0 : stamp - zoneOffset;
+				localtime_r(&stamp, &_tm);
+				int hour = static_cast<int>(zoneOffset / 3600);
+				_tm.tm_hour += hour;
+			}
+		}
+	}
+#else
+	utc ? gmtime_r(&stamp, &_tm) : localtime_r(&stamp, &_tm);
+#endif
+}
+
 void Date::_update()
 {
 	int monthDays = Date::yearMonthDays(year(), month());
@@ -715,9 +743,8 @@ void Date::_update()
 		_tm.tm_mday = monthDays;
 	}
 
-	set(stamp());
+	_set(stamp(), isUTC());
 }
-
 
 
 Time::Time()
@@ -754,50 +781,15 @@ Date Time::toDate() const
 	return Date(*this);
 }
 
-time_t Time::getUTCStamp() const
+Date Time::utcDate() const
 {
-	return seconds() - Date::localTimeZoneOffset();
+	return Date(stamp(), true);
 }
 
-int64 Time::getUTCFullMicroSeconds() const
-{
-	return microStamp() + Date::localTimeZoneOffset() * 1000000;
-}
 
-int64 Time::getUTCFullMilliSeconds() const
+time_t Time::utcStamp() const
 {
-	return milliStamp() + Date::localTimeZoneOffset() * 1000;
-}
-
-time_t Time::getUTCFullSeconds() const
-{
-	return getUTCStamp();
-}
-
-int Time::getUTCFullMinutes() const
-{
-	return static_cast<int>((getUTCStamp() / 60));
-}
-
-int Time::getUTCFullHours() const
-{
-	return static_cast<int>((getUTCStamp() / 3600));
-}
-
-int Time::getUTCFullDays() const
-{
-	return static_cast<int>((getUTCStamp() / 86400));
-}
-
-int Time::getUTCFullWeeks() const
-{
-	int days = getUTCFullDays() + 4;
-	int weeks = (days - 1) / 7;
-	int weekDay = days % 7;
-	if (weekDay < 0) {
-		weeks -= 1;
-	}
-	return weeks;
+	return _tv.tv_sec - Date::localTimeZoneOffset();
 }
 
 Time & Time::set(time_t seconds, long microSeconds)
@@ -987,6 +979,47 @@ int64 Time::diff(const Time & other, Duration::Period period)
 	default:
 		return 0;
 	}
+}
+
+int64 Time::getUTCFullMicroSeconds() const
+{
+	return microStamp() + Date::localTimeZoneOffset() * 1000000;
+}
+
+int64 Time::getUTCFullMilliSeconds() const
+{
+	return milliStamp() + Date::localTimeZoneOffset() * 1000;
+}
+
+time_t Time::getUTCFullSeconds() const
+{
+	return seconds();
+}
+
+int Time::getUTCFullMinutes() const
+{
+	return static_cast<int>((utcStamp() / 60));
+}
+
+int Time::getUTCFullHours() const
+{
+	return static_cast<int>((utcStamp() / 3600));
+}
+
+int Time::getUTCFullDays() const
+{
+	return static_cast<int>((utcStamp() / 86400));
+}
+
+int Time::getUTCFullWeeks() const
+{
+	int days = getUTCFullDays() + 4;
+	int weeks = (days - 1) / 7;
+	int weekDay = days % 7;
+	if (weekDay < 0) {
+		weeks -= 1;
+	}
+	return weeks;
 }
 
 Time Time::operator + (const Duration & duration)

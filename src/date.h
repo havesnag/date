@@ -119,7 +119,9 @@ private:
 class Date
 {
 public:
-	/** @brief 返回当前系统时区，以秒为单位，比如UTC+8的时区为-28800 */
+	/** @brief 返回当前系统时区，比如UTC+8的时区为8 */
+	static int localTimeZone();
+	/** @brief 返回当前系统时区偏移，以秒为单位，比如UTC+8的时区为-28800 */
 	static time_t localTimeZoneOffset();
 	/** @brief 判断是否是闰年 */
 	static bool isLeapYear(int year);
@@ -129,8 +131,12 @@ public:
 public:
 	/** @brief 以当前时间构造 */
 	Date();
-	/** @brief 以时间戳(秒)构造 */
-	Date(time_t stamp);
+	/**
+	 * @brief 以时间戳(秒)构造
+	 * @param stamp 时间戳
+	 * @param utc 是否为UTC基准时间，为false则按本地日历时间构造
+	 */
+	Date(time_t stamp, bool utc = false);
 	/** @brief 以Time对象构造 */
 	Date(const Time &time);
 	/** @brief 以Date对象复制 */
@@ -175,9 +181,6 @@ public:
 	 */
 	std::string format(const char * fmt = "%Y-%m-%d %H:%M:%S") const;
 
-	/** @brief 获取时间戳 */
-	time_t stamp() const;
-
 	/** @brief 年，[1970, ) */
 	inline int year() const
 	{
@@ -220,11 +223,15 @@ public:
 		return (_tm.tm_wday > 0) ? _tm.tm_wday : 7;
 	}
 
-	/** @brief 时区，以秒为单位，比如UTC+8的时区为-28800 */
+	/** @brief 转换为时间戳 @note 按本地时间（时区）转换，比如在东8区(UTC+8)时1970-01-01 00:00:00为-28800 */
+	time_t stamp() const;
+	/** @brief 转换为UTC时间戳 @note 比如1970-01-01 00:00:00为0 */
+	time_t utcStamp() const;
+	/** @brief 时区，比如UTC+8的时区为8 */
+	int timeZone() const;
+	/** @brief 时区偏移，以秒为单位，比如UTC+8的时区为-28800 */
 	time_t timeZoneOffset() const;
 
-	/** @brief 设置时间戳 */
-	Date & set(time_t stamp);
 	/** @brief 统一设置年月日 @note 比单独设置年/月/日更高效 */
 	Date & setDate(int year, int month, int day);
 	/** @brief 设置年，[1970, ) @note 建议使用setDate统一设置年月日 @see setDate */
@@ -290,6 +297,8 @@ public:
 	bool isLeapYear() const;
 	/** @brief 是否是一月的最后一天 */
 	bool isLastDayOfMonth() const;
+	/** @brief 是否是UTC基准时间 */
+	bool isUTC() const;
 
 	Date operator + (const Duration & duration);
 	Date operator - (const Duration & duration);
@@ -299,8 +308,10 @@ public:
 	bool operator < (const Date & other);
 	bool operator = (const Date & other);
 
-	protected:
-		void _update();
+protected:
+	void _set(time_t stamp, bool utc = false);
+	void _update();
+
 private:
 	struct tm _tm;
 };
@@ -325,14 +336,10 @@ public:
 	/** @brief 克隆当前对象 */
 	Time clone() const;
 
-	/** @brief 转换成Date对象 */
+	/** @brief 转换成本地日历时间的Date对象 */
 	Date toDate() const;
-
-	/** @brief 获取时间戳 */
-	inline time_t stamp() const
-	{
-		return _tv.tv_sec;
-	}
+	/** @brief 转换成UTC基准时间的Date对象 */
+	Date utcDate() const;
 
 	/** @brief 获取秒数，等同于时间戳 */
 	inline time_t seconds() const
@@ -357,6 +364,15 @@ public:
 	{
 		return _tv.tv_sec * 1000000 + _tv.tv_usec;
 	}
+
+	/** @brief 获取时间戳 */
+	inline time_t stamp() const
+	{
+		return _tv.tv_sec;
+	}
+
+	/** @brief 获取UTC时间戳 */
+	time_t utcStamp() const;
 
 	/** @brief 设置秒数和微秒数 */
 	Time & set(time_t seconds, long microSeconds = 0);
@@ -416,8 +432,6 @@ public:
 	 */
 	int64 diff(const Time & other, Duration::Period period = Duration::Second);
 
-	/** @brief 获取UTC时间戳 */
-	time_t getUTCStamp() const;
 	/** @brief 距离1970-01-01 00:00:00的微秒数 */
 	int64 getUTCFullMicroSeconds() const;
 	/** @brief 距离1970-01-01 00:00:00的毫秒数 */
