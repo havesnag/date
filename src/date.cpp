@@ -325,8 +325,8 @@ Date::Date(const Time &time)
 
 Date::Date(const Date &other)
 {
-	_tm = other._tm;
 	_isUTC = other._isUTC;
+	_tm = other._tm;
 }
 
 Date::Date(int year, int month, int day, int hour, int minute, int second)
@@ -351,6 +351,11 @@ Date::~Date()
 Date Date::clone() const
 {
 	return Date(*this);
+}
+
+Date Date::toUTC() const
+{
+	return Date(stamp(), true);
 }
 
 Time Date::toTime() const
@@ -422,6 +427,31 @@ int Date::timeZone() const
 time_t Date::timeZoneOffset() const
 {
 	return static_cast<time_t>(-3600 * timeZone());
+}
+
+Date & Date::set(int year, int month, int day, int hour, int minute, int second)
+{
+	_tm.tm_year = year - 1900;
+
+	month = (month - 1) % 12;
+	_tm.tm_mon = (month > 0) ? month : 0;
+
+	day = day % 32;
+	_tm.tm_mon = (day > 1) ? day : 1;
+
+	_update();
+
+	hour = hour % 24;
+	_tm.tm_hour = (hour > 0) ? hour : 0;
+
+	minute = minute % 60;
+	_tm.tm_min = (minute > 0) ? minute : 0;
+
+	second = second % 60;
+	_tm.tm_sec = (second > 0) ? second : 0;
+
+
+	return *this;
 }
 
 Date & Date::setDate(int year, int month, int day)
@@ -533,10 +563,10 @@ Date & Date::add(int64 value, Duration::Period period)
 		_set(toTime().add(value, period).stamp());
 		break;
 	case Duration::Month:
-		addMonth(value);
+		addMonth(int(value));
 		break;
 	case Duration::Year:
-		addMonth(value);
+		addMonth((int)value);
 		break;
 	default:
 		break;
@@ -867,25 +897,25 @@ Time & Time::add(int64 value, Duration::Period period)
 	switch (period)
 	{
 	case Duration::MicroSecond:
-		addMicroSecond(value);
+		addMicroSecond(long(value));
 		break;
 	case Duration::MilliSecond:
-		addMilliSecond(value);
+		addMilliSecond(long(value));
 		break;
 	case Duration::Second:
-		addSecond(value);
+		addSecond(int(value));
 		break;
 	case Duration::Minute:
-		addMinute(value);
+		addMinute(int(value));
 		break;
 	case Duration::Hour:
-		addHour(value);
+		addHour(int(value));
 		break;
 	case Duration::Day:
-		addDay(value);
+		addDay(int(value));
 		break;
 	case Duration::Week:
-		addWeek(value);
+		addWeek(int(value));
 		break;
 	case Duration::Month:
 	case Duration::Year:
@@ -927,13 +957,13 @@ Time & Time::addMinute(int value)
 	return *this;
 }
 
-Time & Time::addSecond(int value)
+Time & Time::addSecond(long value)
 {
 	_tv.tv_sec += value;
 	return *this;
 }
 
-Time & Time::addMilliSecond(int value)
+Time & Time::addMilliSecond(long value)
 {
 	_tv.tv_usec += value * 1000;
 	_tv.tv_sec += _tv.tv_usec / 1000000;
@@ -946,7 +976,7 @@ Time & Time::addMilliSecond(int value)
 	return *this;
 }
 
-Time & Time::addMicroSecond(int value)
+Time & Time::addMicroSecond(long value)
 {
 	_tv.tv_usec += value;
 	_tv.tv_sec += _tv.tv_usec / 1000000;

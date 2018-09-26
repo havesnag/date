@@ -10,6 +10,7 @@
 
 #include <time.h>
 #include <string>
+#include <cstdint>
 
 #if (defined _WIN32) || (defined WIN32) || (defined _WIN64) || (defined WIN64)
 #define PLATFORM_WINDOWS
@@ -21,10 +22,7 @@
 #include <sys/time.h>
 #endif // PLATFORM_WINDOWS
 
-
-#ifndef int64
-#define int64 long long
-#endif//int64
+typedef int64_t int64;
 
 namespace ec
 {
@@ -162,6 +160,8 @@ public:
 
 	/** @brief 克隆当前对象 */
 	Date clone() const;
+	/** @brief 转换为UTC时间 */
+	Date toUTC() const;
 
 	/** @brief 转换为Time对象 */
 	Time toTime() const;
@@ -242,6 +242,8 @@ public:
 	/** @brief 时区偏移，以秒为单位，比如UTC+8的时区为-28800 */
 	time_t timeZoneOffset() const;
 
+	/** @brief 统一设置年月日时分秒 @note 比单独设置年/月/日/时/分/秒更高效 */
+	Date & set(int year, int month, int day, int hour, int minute, int second);
 	/** @brief 统一设置年月日 @note 比单独设置年/月/日更高效 */
 	Date & setDate(int year, int month, int day);
 	/** @brief 设置年，[1970, ) @note 建议使用setDate统一设置年月日 @see setDate */
@@ -406,7 +408,7 @@ public:
 	Time & zeroSet(Duration::Period period);
 
 	/** @brief 加/减 一段时间 */
-	Time & add(int64 value, Duration::Period period);
+	Time & add(int64 value, Duration::Period period = Duration::Period::MilliSecond);
 	/** @brief 加/减 一段时间 */
 	Time & add(const Duration & duration);
 	/** @brief 加/减 周 */
@@ -418,11 +420,11 @@ public:
 	/** @brief 加/减 分 */
 	Time & addMinute(int value);
 	/** @brief 加/减 秒 */
-	Time & addSecond(int value);
+	Time & addSecond(long value);
 	/** @brief 加/减 毫秒 */
-	Time & addMilliSecond(int value);
+	Time & addMilliSecond(long value);
 	/** @brief 加/减 微秒 */
-	Time & addMicroSecond(int value);
+	Time & addMicroSecond(long value);
 
 	/**
 	 * @brief 比较两时间之间的差异
