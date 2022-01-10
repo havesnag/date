@@ -316,7 +316,7 @@ public:
 	Date & operator += (const Duration & duration);
 	Date & operator -= (const Duration & duration);
 	bool operator < (const Date & other);
-	bool operator = (const Date & other);
+	bool operator == (const Date & other);
 
 protected:
 	void _set(time_t stamp);
