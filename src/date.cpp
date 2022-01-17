@@ -416,11 +416,11 @@ int Date::timeZone() const
 #ifdef PLATFORM_WINDOWS
 	return _isUTC ? 0 : Date::localTimeZone();
 #else
-# ifdef __USE_BSD
+# if defined(__USE_BSD) || defined(__USE_MISC)
 	return static_cast<int>(_tm.tm_gmtoff / 3600);
 # else
 	return static_cast<int>(_tm.__tm_gmtoff / 3600);
-# endif//__USE_BSD
+# endif//__USE_BSD __USE_MISC 
 #endif // PLATFORM_WINDOWS
 }
 
@@ -486,7 +486,7 @@ Date & Date::setMonth(int month)
 Date & Date::setDay(int day)
 {
 	day = day % 32;
-	_tm.tm_mon = (day > 1) ? day : 1;
+	_tm.tm_mday = (day > 1) ? day : 1;
 	_update();
 	return *this;
 }
@@ -723,7 +723,7 @@ bool Date::operator < (const Date & other)
 	return _tm.tm_sec < other._tm.tm_sec;
 }
 
-bool Date::operator = (const Date & other)
+bool Date::operator == (const Date & other)
 {
 	return (_tm.tm_year == other._tm.tm_year) &&
 			(_tm.tm_mon == other._tm.tm_mon) &&
