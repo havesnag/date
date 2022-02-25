@@ -437,7 +437,7 @@ Date & Date::set(int year, int month, int day, int hour, int minute, int second)
 	_tm.tm_mon = (month > 0) ? month : 0;
 
 	day = day % 32;
-	_tm.tm_mon = (day > 1) ? day : 1;
+	_tm.tm_mday = (day > 1) ? day : 1;
 
 	_update();
 
